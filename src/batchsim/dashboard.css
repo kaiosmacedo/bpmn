@@ -1,0 +1,507 @@
+/* ===========================================
+   Simulation Dashboard Styles
+   =========================================== */
+
+.sim-dashboard {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 520px;
+  max-width: 50vw;
+  z-index: 99998;
+
+  background: rgba(255, 255, 255, 0.97);
+  border-left: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.1);
+
+  font-family:
+    Arial,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 12px;
+  color: #0f172a;
+
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease;
+}
+
+.sim-dashboard.is-hidden {
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+/* Header */
+.sim-dash__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  flex-shrink: 0;
+}
+
+.sim-dash__title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.sim-dash__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sim-dash__btn {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sim-dash__btn:hover {
+  background: rgba(2, 6, 23, 0.05);
+}
+
+/* Body */
+.sim-dash__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tabs */
+.sim-dash__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.sim-dash__tab {
+  border: none;
+  background: none;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #64748b;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.sim-dash__tab:hover {
+  color: #0f172a;
+}
+.sim-dash__tab.is-active {
+  color: #0b66c3;
+  border-bottom-color: #0b66c3;
+}
+
+/* Content panes */
+.sim-dash__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sim-dash__pane {
+  display: none;
+  padding: 12px 14px;
+}
+.sim-dash__pane.is-active {
+  display: block;
+}
+
+/* Cards */
+.sim-dash__cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sim-dash__card {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.sim-dash__card-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.sim-dash__card-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sim-dash__card-value.is-warn {
+  color: #c62828;
+}
+
+/* Sections */
+.sim-dash__section {
+  margin-top: 12px;
+}
+.sim-dash__section h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Tables */
+.sim-dash__table-wrap {
+  overflow-x: auto;
+}
+
+.sim-dash__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.sim-dash__table th {
+  text-align: left;
+  font-weight: 800;
+  padding: 6px 8px;
+  background: #f1f5f9;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.sim-dash__table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-dash__table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-dash__table tr.is-bottleneck {
+  background: rgba(198, 40, 40, 0.06);
+}
+.sim-dash__table tr.is-bottleneck td {
+  font-weight: 700;
+}
+
+.sim-dash__table--compact {
+  font-size: 11px;
+}
+.sim-dash__table--compact td:first-child {
+  font-weight: 700;
+  color: #64748b;
+  width: 120px;
+}
+
+/* Log table */
+.sim-dash__table-wrap--log {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sim-dash__table--log td {
+  font-size: 10px;
+  max-width: 200px;
+}
+
+.sim-log-warn {
+  background: rgba(181, 154, 0, 0.08);
+}
+.sim-log-error {
+  background: rgba(198, 40, 40, 0.08);
+}
+
+/* Log filter */
+.sim-dash__log-filter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sim-dash__log-filter select,
+.sim-dash__log-filter input {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: #fff;
+}
+
+.sim-dash__log-filter input {
+  flex: 1;
+  min-width: 100px;
+}
+
+.sim-dash__log-count {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Badges */
+.sim-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.sim-badge--red {
+  background: rgba(198, 40, 40, 0.12);
+  color: #c62828;
+  border: 1px solid rgba(198, 40, 40, 0.2);
+}
+.sim-badge--info {
+  background: rgba(11, 102, 195, 0.1);
+  color: #0b3b72;
+  border: 1px solid rgba(11, 102, 195, 0.18);
+}
+.sim-badge--warn {
+  background: rgba(181, 154, 0, 0.12);
+  color: #7c6900;
+  border: 1px solid rgba(181, 154, 0, 0.2);
+}
+.sim-badge--error {
+  background: rgba(198, 40, 40, 0.12);
+  color: #c62828;
+  border: 1px solid rgba(198, 40, 40, 0.2);
+}
+
+/* Bottleneck cards */
+.sim-dash__bottleneck-card {
+  background: rgba(198, 40, 40, 0.04);
+  border: 1px solid rgba(198, 40, 40, 0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.sim-dash__bottleneck-name {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.sim-dash__bottleneck-type {
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.sim-dash__bottleneck-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.sim-dash__bottleneck-stats span {
+  color: #475569;
+}
+
+/* Notes */
+.sim-dash__notes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.sim-dash__notes li {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  line-height: 1.45;
+}
+
+.sim-dash__hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0 0 10px 0;
+}
+
+.sim-dash__empty {
+  color: #94a3b8;
+  font-style: italic;
+  text-align: center;
+  padding: 24px 0;
+}
+
+h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+}
+
+/* ===============================================
+   Simulation Controls Panel (inside modeler)
+   =============================================== */
+
+.sim-controls {
+  position: fixed;
+  right: 14px;
+  top: 14px;
+  z-index: 99997;
+
+  width: 330px;
+  max-width: calc(100vw - 28px);
+
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+
+  font-family:
+    Arial,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  color: #0f172a;
+}
+
+.sim-controls.is-collapsed .sim-controls__body {
+  display: none;
+}
+
+.sim-controls__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 8px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.sim-controls__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.sim-controls__body {
+  padding: 10px 12px 12px 12px;
+}
+
+.sim-controls__form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.sim-controls__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-controls__field label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.sim-controls__field input,
+.sim-controls__field select {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  background: #fff;
+}
+
+.sim-controls__buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.sim-controls__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  transition:
+    transform 0.06s ease,
+    background 0.12s ease;
+}
+
+.sim-controls__btn:hover {
+  background: rgba(2, 6, 23, 0.06);
+}
+.sim-controls__btn:active {
+  transform: translateY(1px);
+}
+.sim-controls__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sim-controls__btn--primary {
+  background: #0b66c3;
+  color: #fff;
+  border-color: #0b66c3;
+}
+.sim-controls__btn--primary:hover {
+  filter: brightness(0.95);
+  background: #0b66c3;
+}
+
+.sim-controls__btn--danger {
+  border-color: rgba(198, 40, 40, 0.25);
+}
+
+.sim-controls__status {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(11, 102, 195, 0.06);
+  border: 1px solid rgba(11, 102, 195, 0.12);
+  font-size: 11px;
+  white-space: pre-wrap;
+  max-height: 100px;
+  overflow: auto;
+}
+
+.sim-controls__row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}

@@ -1,15 +1,18 @@
-import Modeler from 'bpmn-js/lib/Modeler';
+import Modeler from "bpmn-js/lib/Modeler";
 
-import 'bpmn-js/dist/assets/diagram-js.css';
-import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
+import "bpmn-js/dist/assets/diagram-js.css";
+import "bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
 
-import './themes/bizagi-theme.css';
+import "./themes/bizagi-theme.css";
 
-import TokenSimulationModule from 'bpmn-js-token-simulation';
-import 'bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css';
+import TokenSimulationModule from "bpmn-js-token-simulation";
+import "bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css";
 
-const DEFAULT_DIAGRAM_URL = '/pizza-collaboration.bpmn';
-const LOCAL_STORAGE_KEY = 'bpmn.autosave.xml';
+import "./batchsim/batch-sim.css";
+import { bindSimulation } from "./batchsim/simulation-integration.js";
+
+const DEFAULT_DIAGRAM_URL = "/pizza-collaboration.bpmn";
+const LOCAL_STORAGE_KEY = "bpmn.autosave.xml";
 
 /* =====================================================
    Helpers
@@ -17,14 +20,15 @@ const LOCAL_STORAGE_KEY = 'bpmn.autosave.xml';
 
 async function fetchDiagram(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Falha ao carregar diagrama: ${res.status} (${url})`);
+  if (!res.ok)
+    throw new Error(`Falha ao carregar diagrama: ${res.status} (${url})`);
   return res.text();
 }
 
-function downloadText(filename, text, mime = 'application/xml') {
+function downloadText(filename, text, mime = "application/xml") {
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
@@ -54,54 +58,63 @@ function hasEventDefinition(el, typeName) {
 function markerFor(el) {
   const t = el.type;
 
-  if (t === 'bpmn:StartEvent') return 'bizagi-start-event';
-  if (t === 'bpmn:EndEvent') return 'bizagi-end-event';
+  if (t === "bpmn:StartEvent") return "bizagi-start-event";
+  if (t === "bpmn:EndEvent") return "bizagi-end-event";
 
-  if (t === 'bpmn:BoundaryEvent') {
-    if (hasEventDefinition(el, 'bpmn:MessageEventDefinition')) return 'bizagi-message-catch';
-    return 'bizagi-intermediate-catch';
+  if (t === "bpmn:BoundaryEvent") {
+    if (hasEventDefinition(el, "bpmn:MessageEventDefinition"))
+      return "bizagi-message-catch";
+    return "bizagi-intermediate-catch";
   }
 
-  if (t === 'bpmn:IntermediateCatchEvent') {
-    if (hasEventDefinition(el, 'bpmn:MessageEventDefinition')) return 'bizagi-message-catch';
-    return 'bizagi-intermediate-catch';
+  if (t === "bpmn:IntermediateCatchEvent") {
+    if (hasEventDefinition(el, "bpmn:MessageEventDefinition"))
+      return "bizagi-message-catch";
+    return "bizagi-intermediate-catch";
   }
 
-  if (t === 'bpmn:IntermediateThrowEvent') {
-    if (hasEventDefinition(el, 'bpmn:MessageEventDefinition')) return 'bizagi-message-throw';
-    return 'bizagi-intermediate-throw';
+  if (t === "bpmn:IntermediateThrowEvent") {
+    if (hasEventDefinition(el, "bpmn:MessageEventDefinition"))
+      return "bizagi-message-throw";
+    return "bizagi-intermediate-throw";
   }
 
   if (
-    t === 'bpmn:ExclusiveGateway' ||
-    t === 'bpmn:ParallelGateway' ||
-    t === 'bpmn:InclusiveGateway' ||
-    t === 'bpmn:EventBasedGateway' ||
-    t === 'bpmn:ComplexGateway'
-  ) return 'bizagi-gateway';
+    t === "bpmn:ExclusiveGateway" ||
+    t === "bpmn:ParallelGateway" ||
+    t === "bpmn:InclusiveGateway" ||
+    t === "bpmn:EventBasedGateway" ||
+    t === "bpmn:ComplexGateway"
+  )
+    return "bizagi-gateway";
 
-  if (t === 'bpmn:SubProcess' || t === 'bpmn:Transaction' || t === 'bpmn:AdHocSubProcess') {
-    return 'bizagi-subprocess';
+  if (
+    t === "bpmn:SubProcess" ||
+    t === "bpmn:Transaction" ||
+    t === "bpmn:AdHocSubProcess"
+  ) {
+    return "bizagi-subprocess";
   }
 
-  if (t && t.startsWith('bpmn:') && t.endsWith('Task')) return 'bizagi-task';
+  if (t && t.startsWith("bpmn:") && t.endsWith("Task")) return "bizagi-task";
 
-  if (t === 'bpmn:Participant' || t === 'bpmn:Lane') return 'bizagi-participant';
+  if (t === "bpmn:Participant" || t === "bpmn:Lane")
+    return "bizagi-participant";
 
   return null;
 }
 
 const KNOWN_MARKERS = [
-  'bizagi-task',
-  'bizagi-subprocess',
-  'bizagi-gateway',
-  'bizagi-start-event',
-  'bizagi-end-event',
-  'bizagi-intermediate-catch',
-  'bizagi-intermediate-throw',
-  'bizagi-message-catch',
-  'bizagi-message-throw',
-  'bizagi-participant'
+  "bizagi-task",
+  "bizagi-subprocess",
+  "bizagi-gateway",
+  "bizagi-start-event",
+  "bizagi-end-event",
+  "bizagi-intermediate-catch",
+  "bizagi-intermediate-throw",
+  "bizagi-message-catch",
+  "bizagi-message-throw",
+  "bizagi-participant",
 ];
 
 /**
@@ -110,12 +123,13 @@ const KNOWN_MARKERS = [
 function setBizagiMarker(modeler, el, attempt = 0) {
   if (!el || isLabel(el) || isConnection(el)) return;
 
-  const canvas = modeler.get('canvas');
+  const canvas = modeler.get("canvas");
   const gfx = canvas.getGraphics(el.id);
 
   // retry if gfx not yet created (replace/change element)
   if (!gfx) {
-    if (attempt < 2) setTimeout(() => setBizagiMarker(modeler, el, attempt + 1), 0);
+    if (attempt < 2)
+      setTimeout(() => setBizagiMarker(modeler, el, attempt + 1), 0);
     return;
   }
 
@@ -126,18 +140,22 @@ function setBizagiMarker(modeler, el, attempt = 0) {
 }
 
 function applyBizagiMarkersToAll(modeler) {
-  const elementRegistry = modeler.get('elementRegistry');
+  const elementRegistry = modeler.get("elementRegistry");
   elementRegistry.forEach((el) => setBizagiMarker(modeler, el));
 }
 
 function enableAutoMarkers(modeler) {
-  const eventBus = modeler.get('eventBus');
+  const eventBus = modeler.get("eventBus");
 
-  eventBus.on('shape.added', (e) => setBizagiMarker(modeler, e.element));
-  eventBus.on('shape.replaced', (e) => setBizagiMarker(modeler, e.newShape || e.element));
-  eventBus.on('elements.changed', (e) => (e.elements || []).forEach((el) => setBizagiMarker(modeler, el)));
+  eventBus.on("shape.added", (e) => setBizagiMarker(modeler, e.element));
+  eventBus.on("shape.replaced", (e) =>
+    setBizagiMarker(modeler, e.newShape || e.element),
+  );
+  eventBus.on("elements.changed", (e) =>
+    (e.elements || []).forEach((el) => setBizagiMarker(modeler, el)),
+  );
 
-  eventBus.on('import.done', () => applyBizagiMarkersToAll(modeler));
+  eventBus.on("import.done", () => applyBizagiMarkersToAll(modeler));
 }
 
 /* =====================================================
@@ -145,10 +163,10 @@ function enableAutoMarkers(modeler) {
    ===================================================== */
 
 function injectToolbarCssOnce() {
-  if (document.getElementById('bz-toolbar-style')) return;
+  if (document.getElementById("bz-toolbar-style")) return;
 
-  const style = document.createElement('style');
-  style.id = 'bz-toolbar-style';
+  const style = document.createElement("style");
+  style.id = "bz-toolbar-style";
   style.textContent = `
     .bz-toolbar {
       position: fixed !important;
@@ -278,9 +296,9 @@ function injectToolbarCssOnce() {
 function createFloatingToolbar() {
   injectToolbarCssOnce();
 
-  const root = document.createElement('div');
+  const root = document.createElement("div");
   // ✅ start collapsed by default
-  root.className = 'bz-toolbar is-collapsed';
+  root.className = "bz-toolbar is-collapsed";
 
   root.innerHTML = `
     <div class="bz-toolbar__header">
@@ -342,31 +360,33 @@ async function resetToDefault(modeler) {
     const xml = await fetchDiagram(DEFAULT_DIAGRAM_URL);
     await modeler.importXML(xml);
     applyBizagiMarkersToAll(modeler);
-    modeler.get('canvas').zoom('fit-viewport');
+    modeler.get("canvas").zoom("fit-viewport");
   } catch (err) {
-    console.error('Falha ao resetar para default:', err);
-    alert('Falha ao resetar. Veja o console.');
+    console.error("Falha ao resetar para default:", err);
+    alert("Falha ao resetar. Veja o console.");
   }
 }
 
 function bindFloatingToolbar(modeler) {
   const toolbar = createFloatingToolbar();
 
-  const fileInput = toolbar.querySelector('#bz-file-input');
-  const btnSaveBpmn = toolbar.querySelector('#bz-save-bpmn');
-  const btnSaveSvg = toolbar.querySelector('#bz-save-svg');
-  const btnSaveLocal = toolbar.querySelector('#bz-save-local');
-  const btnRestoreLocal = toolbar.querySelector('#bz-restore-local');
-  const btnClearLocal = toolbar.querySelector('#bz-clear-local');
-  const btnResetDefault = toolbar.querySelector('#bz-reset-default');
-  const btnCollapse = toolbar.querySelector('#bz-collapse');
+  const fileInput = toolbar.querySelector("#bz-file-input");
+  const btnSaveBpmn = toolbar.querySelector("#bz-save-bpmn");
+  const btnSaveSvg = toolbar.querySelector("#bz-save-svg");
+  const btnSaveLocal = toolbar.querySelector("#bz-save-local");
+  const btnRestoreLocal = toolbar.querySelector("#bz-restore-local");
+  const btnClearLocal = toolbar.querySelector("#bz-clear-local");
+  const btnResetDefault = toolbar.querySelector("#bz-reset-default");
+  const btnCollapse = toolbar.querySelector("#bz-collapse");
 
-  btnCollapse?.addEventListener('click', () => {
-    toolbar.classList.toggle('is-collapsed');
-    btnCollapse.textContent = toolbar.classList.contains('is-collapsed') ? '▸' : '▾';
+  btnCollapse?.addEventListener("click", () => {
+    toolbar.classList.toggle("is-collapsed");
+    btnCollapse.textContent = toolbar.classList.contains("is-collapsed")
+      ? "▸"
+      : "▾";
   });
 
-  fileInput?.addEventListener('change', async (ev) => {
+  fileInput?.addEventListener("change", async (ev) => {
     const file = ev.target.files?.[0];
     if (!file) return;
 
@@ -374,85 +394,85 @@ function bindFloatingToolbar(modeler) {
       const xml = await file.text();
       await modeler.importXML(xml);
       applyBizagiMarkersToAll(modeler);
-      modeler.get('canvas').zoom('fit-viewport');
+      modeler.get("canvas").zoom("fit-viewport");
 
       // após abrir, salva como estado atual
       const { xml: current } = await modeler.saveXML({ format: true });
       localStorage.setItem(LOCAL_STORAGE_KEY, current);
     } catch (err) {
-      console.error('Falha ao importar BPMN:', err);
-      alert('Falha ao importar BPMN. Veja o console.');
+      console.error("Falha ao importar BPMN:", err);
+      alert("Falha ao importar BPMN. Veja o console.");
     } finally {
-      fileInput.value = '';
+      fileInput.value = "";
     }
   });
 
-  btnSaveBpmn?.addEventListener('click', async () => {
+  btnSaveBpmn?.addEventListener("click", async () => {
     try {
       const { xml } = await modeler.saveXML({ format: true });
-      downloadText('diagram.bpmn', xml, 'application/xml');
+      downloadText("diagram.bpmn", xml, "application/xml");
     } catch (err) {
-      console.error('Falha ao salvar BPMN:', err);
-      alert('Falha ao salvar BPMN. Veja o console.');
+      console.error("Falha ao salvar BPMN:", err);
+      alert("Falha ao salvar BPMN. Veja o console.");
     }
   });
 
-  btnSaveSvg?.addEventListener('click', async () => {
+  btnSaveSvg?.addEventListener("click", async () => {
     try {
       const { svg } = await modeler.saveSVG();
-      downloadText('diagram.svg', svg, 'image/svg+xml');
+      downloadText("diagram.svg", svg, "image/svg+xml");
     } catch (err) {
-      console.error('Falha ao exportar SVG:', err);
-      alert('Falha ao exportar SVG. Veja o console.');
+      console.error("Falha ao exportar SVG:", err);
+      alert("Falha ao exportar SVG. Veja o console.");
     }
   });
 
-  btnSaveLocal?.addEventListener('click', async () => {
+  btnSaveLocal?.addEventListener("click", async () => {
     try {
       const { xml } = await modeler.saveXML({ format: true });
       localStorage.setItem(LOCAL_STORAGE_KEY, xml);
-      alert('Salvo no navegador (localStorage).');
+      alert("Salvo no navegador (localStorage).");
     } catch (err) {
-      console.error('Falha ao salvar local:', err);
-      alert('Falha ao salvar local. Veja o console.');
+      console.error("Falha ao salvar local:", err);
+      alert("Falha ao salvar local. Veja o console.");
     }
   });
 
-  btnRestoreLocal?.addEventListener('click', async () => {
+  btnRestoreLocal?.addEventListener("click", async () => {
     const xml = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!xml) return alert('Não existe backup salvo no navegador.');
+    if (!xml) return alert("Não existe backup salvo no navegador.");
 
     try {
       await modeler.importXML(xml);
       applyBizagiMarkersToAll(modeler);
-      modeler.get('canvas').zoom('fit-viewport');
-      alert('Restaurado do navegador (localStorage).');
+      modeler.get("canvas").zoom("fit-viewport");
+      alert("Restaurado do navegador (localStorage).");
     } catch (err) {
-      console.error('Falha ao restaurar local:', err);
-      alert('Falha ao restaurar local. Veja o console.');
+      console.error("Falha ao restaurar local:", err);
+      alert("Falha ao restaurar local. Veja o console.");
     }
   });
 
-  btnClearLocal?.addEventListener('click', () => {
+  btnClearLocal?.addEventListener("click", () => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    alert('Backup local removido.');
+    alert("Backup local removido.");
   });
 
-  btnResetDefault?.addEventListener('click', () => resetToDefault(modeler));
+  btnResetDefault?.addEventListener("click", () => resetToDefault(modeler));
 
   // Keyboard shortcuts
-  window.addEventListener('keydown', async (e) => {
+  window.addEventListener("keydown", async (e) => {
     const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (!mod) return;
 
-    if (e.key.toLowerCase() === 's') {
+    if (e.key.toLowerCase() === "s") {
       e.preventDefault();
       const { xml } = await modeler.saveXML({ format: true });
-      downloadText('diagram.bpmn', xml, 'application/xml');
+      downloadText("diagram.bpmn", xml, "application/xml");
     }
 
-    if (e.key.toLowerCase() === 'o') {
+    if (e.key.toLowerCase() === "o") {
       e.preventDefault();
       fileInput?.click();
     }
@@ -460,10 +480,10 @@ function bindFloatingToolbar(modeler) {
 }
 
 function fitAndOffsetCanvas(modeler, offsetX = 120) {
-  const canvas = modeler.get('canvas');
+  const canvas = modeler.get("canvas");
 
   // 1) encaixa no viewport
-  canvas.zoom('fit-viewport');
+  canvas.zoom("fit-viewport");
 
   // 2) desloca para a direita (evita sobrepor toolbar)
   canvas.scroll({ dx: offsetX, dy: 0 });
@@ -475,21 +495,22 @@ function fitAndOffsetCanvas(modeler, offsetX = 120) {
 
 async function run() {
   const modeler = new Modeler({
-    container: '#canvas',
-    additionalModules: [TokenSimulationModule]
+    container: "#canvas",
+    additionalModules: [TokenSimulationModule],
   });
 
   enableAutoMarkers(modeler);
   bindFloatingToolbar(modeler);
+  bindSimulation(modeler);
 
   // ✅ AUTOSAVE a cada modificação (evita perder no refresh)
-  const eventBus = modeler.get('eventBus');
-  eventBus.on('commandStack.changed', async () => {
+  const eventBus = modeler.get("eventBus");
+  eventBus.on("commandStack.changed", async () => {
     try {
       const { xml } = await modeler.saveXML({ format: true });
       localStorage.setItem(LOCAL_STORAGE_KEY, xml);
     } catch (e) {
-      console.warn('Autosave falhou:', e);
+      console.warn("Autosave falhou:", e);
     }
   });
 
@@ -508,7 +529,7 @@ async function run() {
     applyBizagiMarkersToAll(modeler);
     fitAndOffsetCanvas(modeler);
   } catch (err) {
-    console.error('Erro ao abrir BPMN:', err);
+    console.error("Erro ao abrir BPMN:", err);
   }
 }
 
