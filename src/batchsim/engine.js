@@ -1,25 +1,53 @@
+import TinyQueue from "tinyqueue";
+import { sampleDist } from "./distributions.js";
 
-import TinyQueue from 'tinyqueue';
-import { sampleDist } from './distributions.js';
+function simSafeDiv(a, b) {
+  return b === 0 ? 0 : a / b;
+}
 
-function simSafeDiv(a,b){ return b===0?0:(a/b); }
-
-function elementType(el) { return el?.$type || ''; }
-function isTask(t) { return t === 'bpmn:Task' || t.endsWith(':Task') || t === 'bpmn:UserTask' || t === 'bpmn:ServiceTask'; }
-function isXor(t) { return t === 'bpmn:ExclusiveGateway'; }
-function isEventBased(t) { return t === 'bpmn:EventBasedGateway'; }
-function isParallel(t) { return t === 'bpmn:ParallelGateway'; }
-function isStart(t) { return t === 'bpmn:StartEvent'; }
-function isEnd(t) { return t === 'bpmn:EndEvent'; }
-function hasTimerDef(el) { return (el.eventDefinitions || []).some(d => d.$type === 'bpmn:TimerEventDefinition'); }
-function hasMessageDef(el) { return (el.eventDefinitions || []).some(d => d.$type === 'bpmn:MessageEventDefinition'); }
+function elementType(el) {
+  return el?.$type || "";
+}
+function isTask(t) {
+  return (
+    t === "bpmn:Task" ||
+    t.endsWith(":Task") ||
+    t === "bpmn:UserTask" ||
+    t === "bpmn:ServiceTask"
+  );
+}
+function isXor(t) {
+  return t === "bpmn:ExclusiveGateway";
+}
+function isEventBased(t) {
+  return t === "bpmn:EventBasedGateway";
+}
+function isParallel(t) {
+  return t === "bpmn:ParallelGateway";
+}
+function isStart(t) {
+  return t === "bpmn:StartEvent";
+}
+function isEnd(t) {
+  return t === "bpmn:EndEvent";
+}
+function hasTimerDef(el) {
+  return (el.eventDefinitions || []).some(
+    (d) => d.$type === "bpmn:TimerEventDefinition",
+  );
+}
+function hasMessageDef(el) {
+  return (el.eventDefinitions || []).some(
+    (d) => d.$type === "bpmn:MessageEventDefinition",
+  );
+}
 
 function pickWeightedFlow(outFlowIds, weightsByFlowId, rng) {
-  const weights = outFlowIds.map(fid => Number(weightsByFlowId?.[fid] ?? 0));
-  const sum = weights.reduce((a,b)=>a+b, 0);
+  const weights = outFlowIds.map((fid) => Number(weightsByFlowId?.[fid] ?? 0));
+  const sum = weights.reduce((a, b) => a + b, 0);
   if (sum <= 0) return outFlowIds[Math.floor(rng() * outFlowIds.length)];
   let r = rng() * sum;
-  for (let i=0;i<outFlowIds.length;i++) {
+  for (let i = 0; i < outFlowIds.length; i++) {
     r -= weights[i];
     if (r <= 0) return outFlowIds[i];
   }
@@ -37,7 +65,7 @@ export async function runBatch({ graph, cfg, rng }) {
   const casesRows = [];
   const taskRows = [];
 
-  for (let rep=1; rep<=replications; rep++) {
+  for (let rep = 1; rep <= replications; rep++) {
     const repRng = rng(seedBase + rep * 1009);
     const res = runOne({ graph, cfg, rep, rng: repRng });
     eventsRows.push(...res.events);
@@ -56,9 +84,10 @@ function runOne({ graph, cfg, rep, rng }) {
   const maxEvents = Number(cfg.maxEvents ?? 200000);
 
   const startEventId = cfg.startEventId || graph.startEvents[0];
-  if (!startEventId) throw new Error('No startEvent found; set cfg.startEventId.');
+  if (!startEventId)
+    throw new Error("No startEvent found; set cfg.startEventId.");
 
-  const arrivalSpec = cfg.caseArrival || { type: 'fixed', value: 0 };
+  const arrivalSpec = cfg.caseArrival || { type: "fixed", value: 0 };
 
   // metrics
   let activeCases = 0;
@@ -75,7 +104,7 @@ function runOne({ graph, cfg, rep, rng }) {
   const xorTotals = new Map();
 
   const events = [];
-  const q = new TinyQueue([], (a,b)=>a.t-b.t);
+  const q = new TinyQueue([], (a, b) => a.t - b.t);
 
   let caseSeq = 0;
   let tokenSeq = 0;
@@ -86,38 +115,46 @@ function runOne({ graph, cfg, rep, rng }) {
     const dt = t - lastTime;
     if (dt > 0) wipArea += activeCases * dt;
     proofRows.push({
-      scenarioId: String(cfg.scenarioId || 'scenario'),
+      scenarioId: String(cfg.scenarioId || "scenario"),
       replication: rep,
       time: Number(t.toFixed(6)),
       dt: Number(dt.toFixed(6)),
       activeCases,
       completedCases,
       wipAreaCum: Number(wipArea.toFixed(6)),
-      throughputCum: Number((completedCases / Math.max(1e-9, t)).toFixed(6))
+      throughputCum: Number((completedCases / Math.max(1e-9, t)).toFixed(6)),
     });
     lastTime = t;
   }
 
   function log(row) {
     events.push({
-      scenarioId: String(cfg.scenarioId || 'scenario'),
+      scenarioId: String(cfg.scenarioId || "scenario"),
       replication: rep,
       simTime: Number(row.simTime.toFixed(6)),
       eventType: row.eventType,
       caseId: row.caseId,
       tokenId: row.tokenId,
-      elementId: row.elementId || '',
-      elementType: row.elementType || '',
-      fromId: row.fromId || '',
-      toId: row.toId || '',
-      flowId: row.flowId || ''
+      elementId: row.elementId || "",
+      elementType: row.elementType || "",
+      fromId: row.fromId || "",
+      toId: row.toId || "",
+      flowId: row.flowId || "",
     });
   }
 
-  function schedule(t, payload) { q.push({ t, ...payload }); }
-  function scheduleArrival(t) { schedule(t, { kind: 'ARRIVAL' }); }
-  function scheduleEnter(t, token) { schedule(t, { kind: 'ENTER', token }); }
-  function scheduleLeave(t, token, toId, flowId) { schedule(t, { kind: 'LEAVE', token, toId, flowId }); }
+  function schedule(t, payload) {
+    q.push({ t, ...payload });
+  }
+  function scheduleArrival(t) {
+    schedule(t, { kind: "ARRIVAL" });
+  }
+  function scheduleEnter(t, token) {
+    schedule(t, { kind: "ENTER", token });
+  }
+  function scheduleLeave(t, token, toId, flowId) {
+    schedule(t, { kind: "LEAVE", token, toId, flowId });
+  }
 
   scheduleArrival(0);
 
@@ -136,7 +173,14 @@ function runOne({ graph, cfg, rep, rng }) {
 
     const token = { caseId, tokenId, nodeId: startEventId };
 
-    log({ simTime: t, eventType: 'case_start', caseId, tokenId, elementId: startEventId, elementType: 'bpmn:StartEvent' });
+    log({
+      simTime: t,
+      eventType: "case_start",
+      caseId,
+      tokenId,
+      elementId: startEventId,
+      elementType: "bpmn:StartEvent",
+    });
     scheduleEnter(t, token);
 
     const ia = sampleDist(arrivalSpec, rng);
@@ -147,11 +191,24 @@ function runOne({ graph, cfg, rep, rng }) {
     updateWip(t);
     const el = graph.elementsById.get(token.nodeId);
     if (!el) {
-      log({ simTime: t, eventType: 'token_error', caseId: token.caseId, tokenId: token.tokenId, elementId: token.nodeId });
+      log({
+        simTime: t,
+        eventType: "token_error",
+        caseId: token.caseId,
+        tokenId: token.tokenId,
+        elementId: token.nodeId,
+      });
       return;
     }
     const tpe = elementType(el);
-    log({ simTime: t, eventType: 'enter', caseId: token.caseId, tokenId: token.tokenId, elementId: el.id, elementType: tpe });
+    log({
+      simTime: t,
+      eventType: "enter",
+      caseId: token.caseId,
+      tokenId: token.tokenId,
+      elementId: el.id,
+      elementType: tpe,
+    });
 
     if (isStart(tpe)) {
       const outs = outgoing(el.id);
@@ -165,14 +222,28 @@ function runOne({ graph, cfg, rep, rng }) {
       activeCases -= 1;
       completedCases += 1;
       const cr = caseRegistry.get(token.caseId);
-      if (cr) { cr.endTime = t; cr.completed = true; caseRegistry.set(token.caseId, cr); }
-      log({ simTime: t, eventType: 'case_end', caseId: token.caseId, tokenId: token.tokenId, elementId: el.id, elementType: tpe });
+      if (cr) {
+        cr.endTime = t;
+        cr.completed = true;
+        caseRegistry.set(token.caseId, cr);
+      }
+      log({
+        simTime: t,
+        eventType: "case_end",
+        caseId: token.caseId,
+        tokenId: token.tokenId,
+        elementId: el.id,
+        elementType: tpe,
+      });
       return;
     }
 
     // Intermediate catch timer
-    if (tpe === 'bpmn:IntermediateCatchEvent' && hasTimerDef(el)) {
-      const delay = sampleDist(cfg.timerEvents?.[el.id] || { type:'fixed', value:1 }, rng);
+    if (tpe === "bpmn:IntermediateCatchEvent" && hasTimerDef(el)) {
+      const delay = sampleDist(
+        cfg.timerEvents?.[el.id] || { type: "fixed", value: 1 },
+        rng,
+      );
       const outs = outgoing(el.id);
       const fid = outs[0];
       const flow = graph.flowsById.get(fid);
@@ -181,8 +252,11 @@ function runOne({ graph, cfg, rep, rng }) {
     }
 
     // Message catch
-    if (tpe === 'bpmn:IntermediateCatchEvent' && hasMessageDef(el)) {
-      const delay = sampleDist(cfg.messageDelays?.[el.id] || { type:'fixed', value:0 }, rng);
+    if (tpe === "bpmn:IntermediateCatchEvent" && hasMessageDef(el)) {
+      const delay = sampleDist(
+        cfg.messageDelays?.[el.id] || { type: "fixed", value: 0 },
+        rng,
+      );
       const outs = outgoing(el.id);
       const fid = outs[0];
       const flow = graph.flowsById.get(fid);
@@ -191,7 +265,7 @@ function runOne({ graph, cfg, rep, rng }) {
     }
 
     // Message throw immediate
-    if (tpe === 'bpmn:IntermediateThrowEvent' && hasMessageDef(el)) {
+    if (tpe === "bpmn:IntermediateThrowEvent" && hasMessageDef(el)) {
       const outs = outgoing(el.id);
       const fid = outs[0];
       const flow = graph.flowsById.get(fid);
@@ -200,9 +274,16 @@ function runOne({ graph, cfg, rep, rng }) {
     }
 
     if (isTask(tpe)) {
-      const dur = sampleDist(cfg.activityDurations?.[el.id] || { type:'fixed', value:1 }, rng);
+      const dur = sampleDist(
+        cfg.activityDurations?.[el.id] || { type: "fixed", value: 1 },
+        rng,
+      );
       const doneAt = t + dur;
-      taskInProgress.set(token.tokenId, { taskId: el.id, doneAt, canceled: false });
+      taskInProgress.set(token.tokenId, {
+        taskId: el.id,
+        doneAt,
+        canceled: false,
+      });
       taskStartTime.set(token.tokenId, { taskId: el.id, startAt: t });
       taskStartTime.set(token.tokenId, { taskId: el.id, startAt: t });
 
@@ -213,11 +294,19 @@ function runOne({ graph, cfg, rep, rng }) {
         const cancelActivity = b.cancelActivity !== false;
         if (!cancelActivity) continue;
 
-        const bDelay = sampleDist(cfg.boundaryTimers?.[b.id] || { type:'fixed', value:dur + 1 }, rng);
-        schedule(t + bDelay, { kind: 'BOUNDARY', token, boundaryId: b.id, attachedTaskId: el.id });
+        const bDelay = sampleDist(
+          cfg.boundaryTimers?.[b.id] || { type: "fixed", value: dur + 1 },
+          rng,
+        );
+        schedule(t + bDelay, {
+          kind: "BOUNDARY",
+          token,
+          boundaryId: b.id,
+          attachedTaskId: el.id,
+        });
       }
 
-      schedule(doneAt, { kind: 'TASK_DONE', token, taskId: el.id });
+      schedule(doneAt, { kind: "TASK_DONE", token, taskId: el.id });
       return;
     }
 
@@ -225,7 +314,8 @@ function runOne({ graph, cfg, rep, rng }) {
       const outs = outgoing(el.id);
       const policy = cfg.xorPolicies?.[el.id];
       let fid = outs[0];
-      if (policy?.type === 'weighted') fid = pickWeightedFlow(outs, policy.weightsByFlowId, rng);
+      if (policy?.type === "weighted")
+        fid = pickWeightedFlow(outs, policy.weightsByFlowId, rng);
       else fid = outs[Math.floor(rng() * outs.length)];
 
       xorTotals.set(el.id, (xorTotals.get(el.id) || 0) + 1);
@@ -251,10 +341,22 @@ function runOne({ graph, cfg, rep, rng }) {
         if (!target) continue;
 
         let delay = 0;
-        if (target.$type === 'bpmn:IntermediateCatchEvent' && hasTimerDef(target)) {
-          delay = sampleDist(cfg.timerEvents?.[target.id] || { type: 'fixed', value: 1 }, rng);
-        } else if (target.$type === 'bpmn:IntermediateCatchEvent' && hasMessageDef(target)) {
-          delay = sampleDist(cfg.messageDelays?.[target.id] || { type: 'fixed', value: 0 }, rng);
+        if (
+          target.$type === "bpmn:IntermediateCatchEvent" &&
+          hasTimerDef(target)
+        ) {
+          delay = sampleDist(
+            cfg.timerEvents?.[target.id] || { type: "fixed", value: 1 },
+            rng,
+          );
+        } else if (
+          target.$type === "bpmn:IntermediateCatchEvent" &&
+          hasMessageDef(target)
+        ) {
+          delay = sampleDist(
+            cfg.messageDelays?.[target.id] || { type: "fixed", value: 0 },
+            rng,
+          );
         } else {
           delay = rng() * 0.001; // instant, tiebreak randomly
         }
@@ -272,14 +374,26 @@ function runOne({ graph, cfg, rep, rng }) {
       if (bestCatchId) {
         const catchEl = graph.elementsById.get(bestCatchId);
         if (catchEl) {
-          log({ simTime: t + bestDelay, eventType: 'enter', caseId: token.caseId, tokenId: token.tokenId, elementId: bestCatchId, elementType: elementType(catchEl) });
+          log({
+            simTime: t + bestDelay,
+            eventType: "enter",
+            caseId: token.caseId,
+            tokenId: token.tokenId,
+            elementId: bestCatchId,
+            elementType: elementType(catchEl),
+          });
         }
         // Route token to the catch event's downstream target (skip re-sampling delay)
         const catchOuts = outgoing(bestCatchId);
         if (catchOuts.length > 0) {
           const catchFlowId = catchOuts[0];
           const catchFlow = graph.flowsById.get(catchFlowId);
-          scheduleLeave(t + bestDelay, token, catchFlow.targetRef.id, catchFlowId);
+          scheduleLeave(
+            t + bestDelay,
+            token,
+            catchFlow.targetRef.id,
+            catchFlowId,
+          );
           return;
         }
       }
@@ -304,7 +418,7 @@ function runOne({ graph, cfg, rep, rng }) {
           const cloneToken = {
             caseId: token.caseId,
             tokenId: `T${rep}_${++tokenSeq}`,
-            nodeId: token.nodeId
+            nodeId: token.nodeId,
           };
           scheduleLeave(t, cloneToken, flow.targetRef.id, fid);
         }
@@ -328,7 +442,15 @@ function runOne({ graph, cfg, rep, rng }) {
     const flow = graph.flowsById.get(flowId);
     const fromId = flow?.sourceRef?.id || token.nodeId;
 
-    log({ simTime: t, eventType: 'leave', caseId: token.caseId, tokenId: token.tokenId, fromId, toId, flowId });
+    log({
+      simTime: t,
+      eventType: "leave",
+      caseId: token.caseId,
+      tokenId: token.tokenId,
+      fromId,
+      toId,
+      flowId,
+    });
 
     token.nodeId = toId;
     scheduleEnter(t, token);
@@ -339,18 +461,25 @@ function runOne({ graph, cfg, rep, rng }) {
     const st = taskInProgress.get(token.tokenId);
     if (!st || st.taskId !== taskId || st.canceled) return;
 
-    log({ simTime: t, eventType: 'task_complete', caseId: token.caseId, tokenId: token.tokenId, elementId: taskId, elementType: 'task' });
+    log({
+      simTime: t,
+      eventType: "task_complete",
+      caseId: token.caseId,
+      tokenId: token.tokenId,
+      elementId: taskId,
+      elementType: "task",
+    });
     const ts = taskStartTime.get(token.tokenId);
     if (ts && ts.taskId === taskId) {
       taskSpans.push({
-        scenarioId: String(cfg.scenarioId || 'scenario'),
+        scenarioId: String(cfg.scenarioId || "scenario"),
         replication: rep,
         caseId: token.caseId,
         taskId,
         startTime: Number(ts.startAt.toFixed(6)),
         endTime: Number(t.toFixed(6)),
         duration: Number((t - ts.startAt).toFixed(6)),
-        outcome: 'completed'
+        outcome: "completed",
       });
       taskStartTime.delete(token.tokenId);
     }
@@ -372,19 +501,27 @@ function runOne({ graph, cfg, rep, rng }) {
     st.canceled = true;
     taskInProgress.set(token.tokenId, st);
 
-    log({ simTime: t, eventType: 'boundary_timer_fire', caseId: token.caseId, tokenId: token.tokenId, elementId: boundaryId, elementType: 'boundary_timer', fromId: attachedTaskId });
+    log({
+      simTime: t,
+      eventType: "boundary_timer_fire",
+      caseId: token.caseId,
+      tokenId: token.tokenId,
+      elementId: boundaryId,
+      elementType: "boundary_timer",
+      fromId: attachedTaskId,
+    });
     const ts = taskStartTime.get(token.tokenId);
     if (ts && ts.taskId === attachedTaskId) {
       taskSpans.push({
-        scenarioId: String(cfg.scenarioId || 'scenario'),
+        scenarioId: String(cfg.scenarioId || "scenario"),
         replication: rep,
         caseId: token.caseId,
         taskId: attachedTaskId,
         startTime: Number(ts.startAt.toFixed(6)),
         endTime: Number(t.toFixed(6)),
         duration: Number((t - ts.startAt).toFixed(6)),
-        outcome: 'canceled_by_boundary_timer',
-        boundaryId
+        outcome: "canceled_by_boundary_timer",
+        boundaryId,
       });
       taskStartTime.delete(token.tokenId);
     }
@@ -403,11 +540,12 @@ function runOne({ graph, cfg, rep, rng }) {
 
     if (t > maxSimTime && activeCases === 0) break;
 
-    if (ev.kind === 'ARRIVAL') onArrival(t);
-    else if (ev.kind === 'ENTER') onEnter(t, ev.token);
-    else if (ev.kind === 'LEAVE') onLeave(t, ev.token, ev.toId, ev.flowId);
-    else if (ev.kind === 'TASK_DONE') onTaskDone(t, ev.token, ev.taskId);
-    else if (ev.kind === 'BOUNDARY') onBoundary(t, ev.token, ev.boundaryId, ev.attachedTaskId);
+    if (ev.kind === "ARRIVAL") onArrival(t);
+    else if (ev.kind === "ENTER") onEnter(t, ev.token);
+    else if (ev.kind === "LEAVE") onLeave(t, ev.token, ev.toId, ev.flowId);
+    else if (ev.kind === "TASK_DONE") onTaskDone(t, ev.token, ev.taskId);
+    else if (ev.kind === "BOUNDARY")
+      onBoundary(t, ev.token, ev.boundaryId, ev.attachedTaskId);
 
     processed++;
   }
@@ -417,13 +555,13 @@ function runOne({ graph, cfg, rep, rng }) {
   const throughput = completedCases / simEndTime;
 
   const summary = {
-    scenarioId: String(cfg.scenarioId || 'scenario'),
+    scenarioId: String(cfg.scenarioId || "scenario"),
     replication: rep,
     simEndTime: Number(simEndTime.toFixed(6)),
     completedCases,
     throughput: Number(throughput.toFixed(6)),
     avgWip: Number(avgWip.toFixed(6)),
-    processedEvents: processed
+    processedEvents: processed,
   };
 
   const paths = [];
@@ -432,13 +570,13 @@ function runOne({ graph, cfg, rep, rng }) {
     for (const fid of outs) {
       const c = flowTraversals.get(fid) || 0;
       paths.push({
-        scenarioId: String(cfg.scenarioId || 'scenario'),
+        scenarioId: String(cfg.scenarioId || "scenario"),
         replication: rep,
         gatewayId,
         flowId: fid,
         traversals: c,
         totalGatewayExits: total,
-        pathProbability: total > 0 ? Number((c / total).toFixed(6)) : 0
+        pathProbability: total > 0 ? Number((c / total).toFixed(6)) : 0,
       });
     }
   }
@@ -447,15 +585,18 @@ function runOne({ graph, cfg, rep, rng }) {
   for (const [caseId, cr] of caseRegistry.entries()) {
     if (cr.startTime == null) continue;
     const endTime = cr.endTime == null ? null : Number(cr.endTime.toFixed(6));
-    const cycleTime = (cr.endTime == null) ? null : Number((cr.endTime - cr.startTime).toFixed(6));
+    const cycleTime =
+      cr.endTime == null
+        ? null
+        : Number((cr.endTime - cr.startTime).toFixed(6));
     casesRows.push({
-      scenarioId: String(cfg.scenarioId || 'scenario'),
+      scenarioId: String(cfg.scenarioId || "scenario"),
       replication: rep,
       caseId,
       startTime: Number(cr.startTime.toFixed(6)),
       endTime,
       cycleTime,
-      completed: cr.completed ? 1 : 0
+      completed: cr.completed ? 1 : 0,
     });
   }
 
