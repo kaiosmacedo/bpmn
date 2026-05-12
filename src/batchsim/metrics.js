@@ -105,10 +105,8 @@ function computeElementMetrics(eventsRows, taskRows, elementsById) {
     taskAgg.set(id, agg);
   }
 
-  // Compute waiting time from enter/leave timing gaps
-  // For each element, waiting time = time between first 'enter' and when processing starts
-  // Approximate: for tasks, wait = 0 (immediate processing), but accumulate queue time later
-  const waitAgg = computeWaitTimes(eventsRows);
+  // Compute waiting time from taskRows (resource queueing wait)
+  const waitAgg = computeWaitTimes(taskRows, eventsRows);
 
   const metrics = [];
 
@@ -153,15 +151,28 @@ function computeElementMetrics(eventsRows, taskRows, elementsById) {
 }
 
 /**
- * Compute approximate wait times.
- * For consecutive enter events on the same element without corresponding leave,
- * tokens queued = wait time accumulation.
+ * Compute wait times per element from taskRows (resource queueing).
+ * Falls back to approximate enter-timing gaps if taskRows have no waitTime field.
  */
-function computeWaitTimes(eventsRows) {
+function computeWaitTimes(taskRows, eventsRows) {
   const waitAgg = new Map();
 
-  // Track enter times per element to detect queuing
-  const enterTimes = new Map(); // elementId -> [simTime, ...]
+  // Primary: use waitTime field from taskRows (accurate resource wait)
+  if (taskRows && taskRows.length > 0 && taskRows[0].waitTime !== undefined) {
+    for (const ts of taskRows) {
+      const wt = ts.waitTime || 0;
+      if (wt > 0) {
+        const agg = waitAgg.get(ts.taskId) || { total: 0, count: 0 };
+        agg.total += wt;
+        agg.count += 1;
+        waitAgg.set(ts.taskId, agg);
+      }
+    }
+    return waitAgg;
+  }
+
+  // Fallback: approximate from consecutive enter events
+  const enterTimes = new Map();
 
   for (const ev of eventsRows) {
     if (ev.eventType === "enter" && ev.elementId) {
@@ -170,7 +181,6 @@ function computeWaitTimes(eventsRows) {
       const times = enterTimes.get(id);
       times.push(ev.simTime);
 
-      // If multiple tokens entered before any left, there's queueing
       if (times.length > 1) {
         const waitDelta = ev.simTime - times[times.length - 2];
         if (waitDelta >= 0) {

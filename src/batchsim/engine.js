@@ -98,7 +98,7 @@ function runOne({ graph, cfg, rep, rng }) {
   const caseRegistry = new Map(); // caseId -> { startTime, endTime, completed }
   const proofRows = [];
   const taskSpans = [];
-  const taskStartTime = new Map(); // tokenId -> { taskId, startAt }
+  const taskStartTime = new Map(); // tokenId -> { taskId, startAt, queuedAt }
 
   const flowTraversals = new Map();
   const xorTotals = new Map();
@@ -110,6 +110,20 @@ function runOne({ graph, cfg, rep, rng }) {
   let tokenSeq = 0;
 
   const taskInProgress = new Map(); // tokenId -> { taskId, doneAt, canceled }
+
+  // ── Resource pools ──
+  // cfg.resources = { "resourceName": capacity, ... }
+  // cfg.taskResources = { "taskId": "resourceName", ... }
+  const resourcePools = new Map(); // resourceName -> { capacity, busy, queue[] }
+  if (cfg.resources) {
+    for (const [name, capacity] of Object.entries(cfg.resources)) {
+      resourcePools.set(name, {
+        capacity: Number(capacity),
+        busy: 0,
+        queue: [],
+      });
+    }
+  }
 
   function updateWip(t) {
     const dt = t - lastTime;
@@ -154,6 +168,45 @@ function runOne({ graph, cfg, rep, rng }) {
   }
   function scheduleLeave(t, token, toId, flowId) {
     schedule(t, { kind: "LEAVE", token, toId, flowId });
+  }
+
+  // Start processing a task (called when resource is available)
+  function startTask(t, token, el) {
+    const dur = sampleDist(
+      cfg.activityDurations?.[el.id] || { type: "fixed", value: 1 },
+      rng,
+    );
+    const doneAt = t + dur;
+    taskInProgress.set(token.tokenId, {
+      taskId: el.id,
+      doneAt,
+      canceled: false,
+    });
+
+    const prev = taskStartTime.get(token.tokenId);
+    const queuedAt = prev?.queuedAt ?? t;
+    taskStartTime.set(token.tokenId, { taskId: el.id, startAt: t, queuedAt });
+
+    // boundary timers cancelActivity
+    const boundaries = graph.boundaryByAttached.get(el.id) || [];
+    for (const b of boundaries) {
+      if (!hasTimerDef(b)) continue;
+      const cancelActivity = b.cancelActivity !== false;
+      if (!cancelActivity) continue;
+
+      const bDelay = sampleDist(
+        cfg.boundaryTimers?.[b.id] || { type: "fixed", value: dur + 1 },
+        rng,
+      );
+      schedule(t + bDelay, {
+        kind: "BOUNDARY",
+        token,
+        boundaryId: b.id,
+        attachedTaskId: el.id,
+      });
+    }
+
+    schedule(doneAt, { kind: "TASK_DONE", token, taskId: el.id });
   }
 
   scheduleArrival(0);
@@ -274,39 +327,24 @@ function runOne({ graph, cfg, rep, rng }) {
     }
 
     if (isTask(tpe)) {
-      const dur = sampleDist(
-        cfg.activityDurations?.[el.id] || { type: "fixed", value: 1 },
-        rng,
-      );
-      const doneAt = t + dur;
-      taskInProgress.set(token.tokenId, {
-        taskId: el.id,
-        doneAt,
-        canceled: false,
-      });
-      taskStartTime.set(token.tokenId, { taskId: el.id, startAt: t });
-      taskStartTime.set(token.tokenId, { taskId: el.id, startAt: t });
+      const resourceName = cfg.taskResources?.[el.id];
+      const pool = resourceName ? resourcePools.get(resourceName) : null;
 
-      // boundary timers cancelActivity
-      const boundaries = graph.boundaryByAttached.get(el.id) || [];
-      for (const b of boundaries) {
-        if (!hasTimerDef(b)) continue;
-        const cancelActivity = b.cancelActivity !== false;
-        if (!cancelActivity) continue;
-
-        const bDelay = sampleDist(
-          cfg.boundaryTimers?.[b.id] || { type: "fixed", value: dur + 1 },
-          rng,
-        );
-        schedule(t + bDelay, {
-          kind: "BOUNDARY",
-          token,
-          boundaryId: b.id,
-          attachedTaskId: el.id,
+      if (pool && pool.busy >= pool.capacity) {
+        // Resource unavailable — queue the token
+        pool.queue.push({ token, taskId: el.id, queuedAt: t });
+        taskStartTime.set(token.tokenId, {
+          taskId: el.id,
+          startAt: null,
+          queuedAt: t,
         });
+        return;
       }
 
-      schedule(doneAt, { kind: "TASK_DONE", token, taskId: el.id });
+      // Acquire resource
+      if (pool) pool.busy++;
+
+      startTask(t, token, el);
       return;
     }
 
@@ -369,6 +407,8 @@ function runOne({ graph, cfg, rep, rng }) {
       }
 
       xorTotals.set(el.id, (xorTotals.get(el.id) || 0) + 1);
+      // Record that the gateway's outgoing flow was traversed
+      flowTraversals.set(bestFid, (flowTraversals.get(bestFid) || 0) + 1);
 
       // Log entering the winning catch event
       if (bestCatchId) {
@@ -471,6 +511,10 @@ function runOne({ graph, cfg, rep, rng }) {
     });
     const ts = taskStartTime.get(token.tokenId);
     if (ts && ts.taskId === taskId) {
+      const waitTime =
+        ts.startAt != null && ts.queuedAt != null
+          ? Number((ts.startAt - ts.queuedAt).toFixed(6))
+          : 0;
       taskSpans.push({
         scenarioId: String(cfg.scenarioId || "scenario"),
         replication: rep,
@@ -479,11 +523,25 @@ function runOne({ graph, cfg, rep, rng }) {
         startTime: Number(ts.startAt.toFixed(6)),
         endTime: Number(t.toFixed(6)),
         duration: Number((t - ts.startAt).toFixed(6)),
+        waitTime,
         outcome: "completed",
       });
       taskStartTime.delete(token.tokenId);
     }
     taskInProgress.delete(token.tokenId);
+
+    // Release resource and dequeue next waiting token
+    const resourceName = cfg.taskResources?.[taskId];
+    const pool = resourceName ? resourcePools.get(resourceName) : null;
+    if (pool) {
+      pool.busy--;
+      if (pool.queue.length > 0) {
+        const next = pool.queue.shift();
+        pool.busy++;
+        const el = graph.elementsById.get(next.taskId);
+        if (el) startTask(t, next.token, el);
+      }
+    }
 
     const outs = outgoing(taskId);
     if (!outs.length) return;
@@ -500,6 +558,19 @@ function runOne({ graph, cfg, rep, rng }) {
 
     st.canceled = true;
     taskInProgress.set(token.tokenId, st);
+
+    // Release resource
+    const resourceName = cfg.taskResources?.[attachedTaskId];
+    const pool = resourceName ? resourcePools.get(resourceName) : null;
+    if (pool) {
+      pool.busy--;
+      if (pool.queue.length > 0) {
+        const next = pool.queue.shift();
+        pool.busy++;
+        const el = graph.elementsById.get(next.taskId);
+        if (el) startTask(t, next.token, el);
+      }
+    }
 
     log({
       simTime: t,

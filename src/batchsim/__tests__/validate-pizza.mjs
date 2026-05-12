@@ -32,7 +32,13 @@ function assert(condition, msg) {
 function test(name, fn) {
   console.log(`\n▶ ${name}`);
   try {
-    fn();
+    const result = fn();
+    if (result && typeof result.then === "function") {
+      return result.catch((e) => {
+        failed++;
+        console.error(`  EXCEPTION: ${e.message}\n${e.stack}`);
+      });
+    }
   } catch (e) {
     failed++;
     console.error(`  EXCEPTION: ${e.message}\n${e.stack}`);
@@ -108,7 +114,7 @@ test("buildGraph - parses all processes in collaboration", () => {
   );
 });
 
-test("runBatch - pizza collaboration with startEventId=_6-61", async () => {
+await test("runBatch - pizza collaboration with startEventId=_6-61", async () => {
   const graph = buildGraph(definitions);
 
   // Small run: 3 replications
@@ -158,11 +164,43 @@ test("runBatch - pizza collaboration with startEventId=_6-61", async () => {
   if (withCycleTime.length > 0) {
     const avg =
       withCycleTime.reduce((a, c) => a + c.cycleTime, 0) / withCycleTime.length;
-    console.log(`    Avg cycle time: ${avg.toFixed(2)}`);
+    const min = Math.min(...withCycleTime.map((c) => c.cycleTime));
+    const max = Math.max(...withCycleTime.map((c) => c.cycleTime));
+    console.log(
+      `    Avg cycle time: ${avg.toFixed(2)} (min: ${min.toFixed(2)}, max: ${max.toFixed(2)})`,
+    );
+
+    // With triangular distributions, cycle times should NOT all be identical
+    assert(
+      min !== max,
+      `cycle times have variability (min=${min.toFixed(2)} != max=${max.toFixed(2)})`,
+    );
+  }
+
+  // Check path tracking (EventBasedGateway should record traversals)
+  const gwPaths = results.pathRows.filter((p) => p.gatewayId === "_6-180");
+  const gwTraversals = gwPaths.reduce((a, p) => a + p.traversals, 0);
+  console.log(`    EventBasedGateway path traversals: ${gwTraversals}`);
+  assert(
+    gwTraversals > 0,
+    `EventBasedGateway paths have traversals, got ${gwTraversals}`,
+  );
+
+  // Check taskRows have waitTime field
+  if (results.taskRows.length > 0) {
+    assert(
+      results.taskRows[0].waitTime !== undefined,
+      "taskRows have waitTime field",
+    );
+    const totalWait = results.taskRows.reduce(
+      (a, t) => a + (t.waitTime || 0),
+      0,
+    );
+    console.log(`    Total resource wait time: ${totalWait.toFixed(2)}`);
   }
 });
 
-test("computeMetrics - pizza collaboration results", async () => {
+await test("computeMetrics - pizza collaboration results", async () => {
   const graph = buildGraph(definitions);
   const smallCfg = { ...cfg, replications: 3, maxSimTime: 200 };
   const rngFactory = (seed) => mulberry32(seed);
@@ -186,7 +224,7 @@ test("computeMetrics - pizza collaboration results", async () => {
   console.log(`    Qualitative notes: ${metrics.qualitativeNotes.length}`);
 });
 
-test("buildStructuredLog - pizza collaboration", async () => {
+await test("buildStructuredLog - pizza collaboration", async () => {
   const graph = buildGraph(definitions);
   const smallCfg = { ...cfg, replications: 1, maxSimTime: 100 };
   const rngFactory = (seed) => mulberry32(seed);

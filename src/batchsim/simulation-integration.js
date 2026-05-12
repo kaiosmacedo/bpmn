@@ -243,34 +243,34 @@ export function bindSimulation(modeler) {
 
 function exportCsv(run) {
   const raw = run.rawResults;
+  const metrics = run.metrics;
   const prefix = run.parameters.scenarioId || "simulation";
 
-  if (raw.eventsRows?.length)
-    downloadText(`events_${prefix}.csv`, toCsv(raw.eventsRows), "text/csv");
-  if (raw.summaryRows?.length)
-    downloadText(`summary_${prefix}.csv`, toCsv(raw.summaryRows), "text/csv");
+  // 1) Cases: one row per case with cycle time (most important)
   if (raw.casesRows?.length)
-    downloadText(`cases_${prefix}.csv`, toCsv(raw.casesRows), "text/csv");
-  if (raw.taskRows?.length)
-    downloadText(`tasks_${prefix}.csv`, toCsv(raw.taskRows), "text/csv");
-  if (raw.pathRows?.length)
-    downloadText(`paths_${prefix}.csv`, toCsv(raw.pathRows), "text/csv");
+    downloadText(`${prefix}_casos.csv`, toCsv(raw.casesRows), "text/csv");
 
-  // Export structured log
-  if (run.log?.length) {
-    const logRows = run.log.map((e) => ({
-      seq: e.seq,
-      eventType: e.eventType,
-      simTime: e.simTime,
-      caseId: e.caseId,
-      tokenId: e.tokenId,
-      elementId: e.elementId,
-      elementName: e.elementName,
-      message: e.message,
-      level: e.level,
+  // 2) Element statistics: per-element metrics from analysis
+  if (metrics?.elementMetrics?.length) {
+    const elemRows = metrics.elementMetrics.map((m) => ({
+      elementId: m.elementId,
+      elementName: m.elementName,
+      elementType: m.elementType,
+      visits: m.visits,
+      avgTime: m.avgTime,
+      minTime: m.minTime,
+      maxTime: m.maxTime,
+      totalTime: m.totalTime,
+      waitTime: m.waitTime,
+      avgWaitTime: m.avgWaitTime,
+      isBottleneck: m.isBottleneck ? "SIM" : "",
     }));
-    downloadText(`log_${prefix}.csv`, toCsv(logRows), "text/csv");
+    downloadText(`${prefix}_elementos.csv`, toCsv(elemRows), "text/csv");
   }
+
+  // 3) Summary: one row per replication
+  if (raw.summaryRows?.length)
+    downloadText(`${prefix}_resumo.csv`, toCsv(raw.summaryRows), "text/csv");
 }
 
 function setStatus(el, text) {

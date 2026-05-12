@@ -1,20 +1,32 @@
 {
   "scenarioId": "qr-code",
-  "replications": 500,
+  "replications": 50,
   "seed": 2026,
   "startEventId": "START_PROCESS",
   "caseArrival": {
     "type": "exponential",
     "mean": 1.5
   },
+  "resources": {
+    "scanner": 2,
+    "server": 1
+  },
+  "taskResources": {
+    "SCAN_QR_CODE": "scanner",
+    "sid-E49425CF-8287-4798-B622-D2A7D78EF00B": "server"
+  },
   "activityDurations": {
     "SCAN_QR_CODE": {
-      "type": "fixed",
-      "value": 0.3
+      "type": "triangular",
+      "min": 0.1,
+      "mode": 0.3,
+      "max": 0.8
     },
     "sid-E49425CF-8287-4798-B622-D2A7D78EF00B": {
-      "type": "fixed",
-      "value": 0.8
+      "type": "triangular",
+      "min": 0.4,
+      "mode": 0.8,
+      "max": 2.0
     }
   },
   "xorPolicies": {
