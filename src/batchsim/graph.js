@@ -1,8 +1,7 @@
 
 export function buildGraph(definitions) {
   const processes = definitions.rootElements?.filter(e => e.$type === 'bpmn:Process') || [];
-  const process = processes[0];
-  if (!process) throw new Error('No bpmn:Process found in definitions.');
+  if (processes.length === 0) throw new Error('No bpmn:Process found in definitions.');
 
   const elementsById = new Map();
   const outgoingById = new Map();
@@ -32,7 +31,10 @@ export function buildGraph(definitions) {
     }
   }
 
-  collect(process);
+  // Collect elements from ALL processes (supports collaboration diagrams)
+  for (const process of processes) {
+    collect(process);
+  }
 
   for (const [flowId, flow] of flowsById.entries()) {
     const src = flow.sourceRef?.id;
@@ -48,7 +50,7 @@ export function buildGraph(definitions) {
   }
 
   return {
-    processId: process.id,
+    processId: processes[0].id,
     elementsById,
     outgoingById,
     flowsById,

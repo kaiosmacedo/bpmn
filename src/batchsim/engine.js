@@ -7,6 +7,8 @@ function simSafeDiv(a,b){ return b===0?0:(a/b); }
 function elementType(el) { return el?.$type || ''; }
 function isTask(t) { return t === 'bpmn:Task' || t.endsWith(':Task') || t === 'bpmn:UserTask' || t === 'bpmn:ServiceTask'; }
 function isXor(t) { return t === 'bpmn:ExclusiveGateway'; }
+function isEventBased(t) { return t === 'bpmn:EventBasedGateway'; }
+function isParallel(t) { return t === 'bpmn:ParallelGateway'; }
 function isStart(t) { return t === 'bpmn:StartEvent'; }
 function isEnd(t) { return t === 'bpmn:EndEvent'; }
 function hasTimerDef(el) { return (el.eventDefinitions || []).some(d => d.$type === 'bpmn:TimerEventDefinition'); }
@@ -229,6 +231,84 @@ function runOne({ graph, cfg, rep, rng }) {
       xorTotals.set(el.id, (xorTotals.get(el.id) || 0) + 1);
       const flow = graph.flowsById.get(fid);
       scheduleLeave(t, token, flow.targetRef.id, fid);
+      return;
+    }
+
+    // EventBasedGateway: race competing catch events via their delays
+    if (isEventBased(tpe)) {
+      const outs = outgoing(el.id);
+      if (!outs.length) return;
+
+      // For each outgoing flow, resolve the target catch event and sample its delay
+      let bestFid = outs[0];
+      let bestDelay = Infinity;
+      let bestCatchId = null;
+
+      for (const fid of outs) {
+        const flow = graph.flowsById.get(fid);
+        if (!flow) continue;
+        const target = graph.elementsById.get(flow.targetRef?.id);
+        if (!target) continue;
+
+        let delay = 0;
+        if (target.$type === 'bpmn:IntermediateCatchEvent' && hasTimerDef(target)) {
+          delay = sampleDist(cfg.timerEvents?.[target.id] || { type: 'fixed', value: 1 }, rng);
+        } else if (target.$type === 'bpmn:IntermediateCatchEvent' && hasMessageDef(target)) {
+          delay = sampleDist(cfg.messageDelays?.[target.id] || { type: 'fixed', value: 0 }, rng);
+        } else {
+          delay = rng() * 0.001; // instant, tiebreak randomly
+        }
+
+        if (delay < bestDelay) {
+          bestDelay = delay;
+          bestFid = fid;
+          bestCatchId = target.id;
+        }
+      }
+
+      xorTotals.set(el.id, (xorTotals.get(el.id) || 0) + 1);
+
+      // Log entering the winning catch event
+      if (bestCatchId) {
+        const catchEl = graph.elementsById.get(bestCatchId);
+        if (catchEl) {
+          log({ simTime: t + bestDelay, eventType: 'enter', caseId: token.caseId, tokenId: token.tokenId, elementId: bestCatchId, elementType: elementType(catchEl) });
+        }
+        // Route token to the catch event's downstream target (skip re-sampling delay)
+        const catchOuts = outgoing(bestCatchId);
+        if (catchOuts.length > 0) {
+          const catchFlowId = catchOuts[0];
+          const catchFlow = graph.flowsById.get(catchFlowId);
+          scheduleLeave(t + bestDelay, token, catchFlow.targetRef.id, catchFlowId);
+          return;
+        }
+      }
+
+      // Fallback: just go to the catch event
+      const flow = graph.flowsById.get(bestFid);
+      scheduleLeave(t + bestDelay, token, flow.targetRef.id, bestFid);
+      return;
+    }
+
+    // ParallelGateway (fork): send token to ALL outgoing flows
+    if (isParallel(tpe)) {
+      const outs = outgoing(el.id);
+      if (!outs.length) return;
+      // Fork: first outgoing gets the original token, rest get clones
+      for (let i = 0; i < outs.length; i++) {
+        const fid = outs[i];
+        const flow = graph.flowsById.get(fid);
+        if (i === 0) {
+          scheduleLeave(t, token, flow.targetRef.id, fid);
+        } else {
+          const cloneToken = {
+            caseId: token.caseId,
+            tokenId: `T${rep}_${++tokenSeq}`,
+            nodeId: token.nodeId
+          };
+          scheduleLeave(t, cloneToken, flow.targetRef.id, fid);
+        }
+      }
       return;
     }
 
