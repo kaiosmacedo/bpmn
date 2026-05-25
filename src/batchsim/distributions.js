@@ -26,5 +26,26 @@ export function sampleDist(spec, rng) {
     return Math.max(0, mu + sigma * z0);
   }
 
+  if (t === 'triangular') {
+    const a = Number(spec.min ?? 0);
+    const b = Number(spec.max ?? a + 1);
+    const c = Number(spec.mode ?? (a + b) / 2);
+    const u = rng();
+    const fc = (c - a) / (b - a);
+    if (u < fc) {
+      return a + Math.sqrt(u * (b - a) * (c - a));
+    }
+    return b - Math.sqrt((1 - u) * (b - a) * (b - c));
+  }
+
+  if (t === 'lognormal') {
+    const mu = Number(spec.mean ?? 0);
+    const sigma = Number(spec.sd ?? 1);
+    const u1 = Math.max(1e-12, rng());
+    const u2 = rng();
+    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return Math.exp(mu + sigma * z0);
+  }
+
   return 0;
 }
