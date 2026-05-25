@@ -141,6 +141,7 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin-bottom: 4px;
+  line-height: 1.6;
 }
 
 .sim-dash__card-value {
@@ -151,6 +152,81 @@
 
 .sim-dash__card-value.is-warn {
   color: #c62828;
+}
+.sim-dash__card-value.is-good {
+  color: #2e7d32;
+}
+.sim-dash__card-foot {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.sim-dash__section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 14px 0 6px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.sim-dash__section-hint {
+  font-size: 10px;
+  font-weight: 400;
+  color: #94a3b8;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Utilization bar */
+.sim-dash__bar {
+  position: relative;
+  width: 100px;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+}
+.sim-dash__bar-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.3s;
+}
+.sim-dash__bar-fill.is-mid { background: #f59e0b; }
+.sim-dash__bar-fill.is-over { background: #ef4444; }
+.sim-dash__bar-fill.is-low { background: #4caf50; }
+.sim-dash__bar-label {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+.sim-dash__muted {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.sim-badge--green {
+  background: #dcfce7;
+  color: #166534;
+}
+.sim-badge--blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+tr.is-idle {
+  background: rgba(59, 130, 246, 0.04);
 }
 
 /* Sections */
@@ -310,16 +386,6 @@
   font-size: 10px;
   color: #64748b;
   margin-bottom: 6px;
-}
-
-.sim-dash__bottleneck-stats {
-  display: flex;
-  gap: 12px;
-  font-size: 11px;
-}
-
-.sim-dash__bottleneck-stats span {
-  color: #475569;
 }
 
 /* Notes */
@@ -496,7 +562,7 @@ h4 {
   border: 1px solid rgba(11, 102, 195, 0.12);
   font-size: 11px;
   white-space: pre-wrap;
-  max-height: 100px;
+  max-height: 220px;
   overflow: auto;
 }
 
@@ -504,4 +570,208 @@ h4 {
   display: flex;
   gap: 6px;
   margin-top: 6px;
+}
+
+/* ===============================================
+   Tooltips (sim-tip)
+   =============================================== */
+.sim-tip {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted #94a3b8;
+}
+.sim-tip__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(11, 102, 195, 0.12);
+  color: #0b66c3;
+  font-size: 9px;
+  font-weight: 800;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+.sim-tip__text {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 100;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 8px 10px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  pointer-events: none;
+}
+.sim-tip:hover .sim-tip__text,
+.sim-tip:focus .sim-tip__text {
+  display: block;
+}
+
+/* ===============================================
+   Explainer blocks
+   =============================================== */
+.sim-dash__explainer {
+  background: #f0f9ff;
+  border: 1px solid rgba(11, 102, 195, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #334155;
+}
+.sim-dash__explainer p {
+  margin: 0 0 6px 0;
+}
+.sim-dash__explainer p:last-child {
+  margin-bottom: 0;
+}
+.sim-dash__explainer strong {
+  color: #0f172a;
+}
+
+.sim-dash__legend {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.sim-dash__legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+}
+.sim-dash__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.sim-dash__dot--green { background: #4caf50; }
+.sim-dash__dot--amber { background: #f59e0b; }
+.sim-dash__dot--red { background: #ef4444; }
+
+/* ===============================================
+   Empty block
+   =============================================== */
+.sim-dash__empty-block {
+  text-align: center;
+  padding: 20px 14px;
+}
+.sim-dash__empty-block .sim-dash__hint {
+  max-width: 300px;
+  margin: 6px auto 0;
+}
+
+/* ===============================================
+   Bottleneck stat items
+   =============================================== */
+.sim-dash__bottleneck-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  margin-top: 8px;
+}
+.sim-dash__stat {
+  display: flex;
+  flex-direction: column;
+}
+.sim-dash__stat-label {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.sim-dash__stat-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.sim-dash__stat-value--warn {
+  color: #c62828;
+}
+.sim-dash__bottleneck-tip {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* ===============================================
+   Glossary
+   =============================================== */
+.sim-dash__glossary {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+}
+.sim-dash__glossary h5 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+.sim-dash__glossary dl {
+  margin: 0;
+}
+.sim-dash__glossary dt {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 8px;
+}
+.sim-dash__glossary dt:first-child {
+  margin-top: 0;
+}
+.sim-dash__glossary dd {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* ===============================================
+   Note items (analysis tab)
+   =============================================== */
+.sim-dash__note-item {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+/* Card extra: is-warn at card level */
+.sim-dash__card.is-warn {
+  border-color: rgba(198, 40, 40, 0.2);
+  background: rgba(198, 40, 40, 0.03);
+}
+.sim-dash__card.is-warn .sim-dash__card-value {
+  color: #c62828;
+}
+.sim-dash__card.is-good .sim-dash__card-value {
+  color: #2e7d32;
 }

@@ -1,52 +1,63 @@
 {
   "scenarioId": "pizza-collaboration",
-  "replications": 200,
+  "replications": 30,
   "seed": 2026,
   "startEventId": "_6-61",
+
+  "_calibrationNotes": [
+    "Calibração baseada em benchmarks médios de pizzaria urbana:",
+    "- Forno (Bake): 8-15 min ⇒ Normal(μ=12, σ=3)",
+    "- Entrega (Deliver): 10-25 min urbano ⇒ Normal(μ=15, σ=4)",
+    "- Refeição (Eat): 20-30 min ⇒ Normal(μ=25, σ=8)",
+    "- Demais: tempos exponenciais curtos (segundos a minutos)",
+    "Chegada λ = 1/10 = 0.1 clientes/min (horário de pico).",
+    "Capacidades calibradas para alvo de utilização ρ entre 0.25 e 0.85:",
+    "  clerk ρ ≈ 0.25 (subutilizado, raramente atendendo)",
+    "  chef  ρ ≈ 0.60 (saudável)",
+    "  delivery ρ ≈ 0.75 (próximo do limite ⇒ candidato a gargalo)",
+    "SLA do cliente: 60 min do pedido à entrega."
+  ],
+
   "caseArrival": {
     "type": "exponential",
-    "mean": 5
+    "mean": 10
   },
+
+  "resources": {
+    "_6-650": { "capacity": 1, "name": "Atendente (clerk)" },
+    "_6-446": { "capacity": 2, "name": "Pizzaiolo (chef)" },
+    "_6-448": { "capacity": 2, "name": "Entregador (delivery)" }
+  },
+
   "activityDurations": {
-    "_6-74": {
-      "type": "fixed",
-      "value": 1.0
-    },
-    "_6-127": {
-      "type": "fixed",
-      "value": 0.5
-    },
-    "_6-236": {
-      "type": "fixed",
-      "value": 1.0
-    },
-    "_6-304": {
-      "type": "fixed",
-      "value": 1.0
-    },
-    "_6-355": {
-      "type": "fixed",
-      "value": 15.0
-    }
+    "_6-74":  { "type": "exponential", "mean": 2.0,  "name": "Select a pizza" },
+    "_6-127": { "type": "exponential", "mean": 1.5,  "name": "Order a pizza" },
+    "_6-236": { "type": "exponential", "mean": 1.0,  "name": "Ask for the pizza" },
+    "_6-304": { "type": "normal",      "mean": 1.5,  "sd": 0.3, "name": "Pay the pizza" },
+    "_6-355": { "type": "normal",      "mean": 25.0, "sd": 8.0, "name": "Eat the pizza" },
+
+    "_6-463": { "type": "normal",      "mean": 12.0, "sd": 3.0, "name": "Bake the pizza" },
+    "_6-514": { "type": "normal",      "mean": 15.0, "sd": 4.0, "name": "Deliver the pizza" },
+    "_6-565": { "type": "normal",      "mean": 1.0,  "sd": 0.2, "name": "Receive payment" },
+    "_6-695": { "type": "exponential", "mean": 4.0,  "name": "Calm customer" }
   },
+
   "timerEvents": {
-    "_6-219": {
-      "type": "fixed",
-      "value": 60.0
-    }
+    "_6-219": { "type": "fixed", "value": 60.0, "name": "60-minutes SLA" }
   },
-  "messageDelays": {
-    "_6-202": {
-      "type": "fixed",
-      "value": 0.2
-    },
-    "_6-674": {
-      "type": "fixed",
-      "value": 0.5
-    }
+
+  "messageFlowDelays": {
+    "_6-638": { "type": "fixed", "value": 0.2, "name": "pizza order (chamada)" },
+    "_6-640": { "type": "fixed", "value": 0.2, "name": "pizza handover" },
+    "_6-642": { "type": "fixed", "value": 0.2, "name": "where is my pizza?" },
+    "_6-646": { "type": "fixed", "value": 0.1, "name": "receipt" },
+    "_6-648": { "type": "fixed", "value": 0.1, "name": "money" },
+    "_6-750": { "type": "fixed", "value": 0.1, "name": "calm customer ack" }
   },
-  "maxSimTime": 480,
+
+  "maxSimTime": 600,
   "maxEvents": 400000,
+
   "export": {
     "prefix": "pizza-collaboration"
   }

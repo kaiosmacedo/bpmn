@@ -63,10 +63,11 @@ export function buildStructuredLog(eventsRows, elementsById, cfg) {
     const elName = el ? el.name || "" : "";
     const elType = ev.elementType || (el ? el.$type : "") || "";
 
-    // Check for unsupported elements
+    // Check for unsupported elements (only flag genuine bpmn:* types)
     if (
       ev.elementId &&
       elType &&
+      elType.startsWith("bpmn:") &&
       !supportedTypes.has(elType) &&
       !unsupported.has(ev.elementId)
     ) {
@@ -128,6 +129,8 @@ function mapEventType(raw) {
       return SimulationEventType.CASE_START;
     case "case_end":
       return SimulationEventType.CASE_END;
+    case "token_end":
+      return SimulationEventType.CASE_END;
     case "enter":
       return SimulationEventType.ENTER;
     case "leave":
@@ -138,6 +141,11 @@ function mapEventType(raw) {
       return SimulationEventType.BOUNDARY_FIRE;
     case "token_error":
       return SimulationEventType.TOKEN_ERROR;
+    case "queue_wait":
+      return SimulationEventType.QUEUE_WAIT;
+    case "message_sent":
+    case "message_received":
+      return raw;
     default:
       return raw;
   }
@@ -159,6 +167,12 @@ function buildMessage(type, ev, elName) {
       return `Tarefa "${label}" concluída pelo token ${ev.tokenId}`;
     case SimulationEventType.BOUNDARY_FIRE:
       return `Evento de contorno disparou em "${label}" (cancelou atividade ${ev.fromId || ""})`;
+    case SimulationEventType.QUEUE_WAIT:
+      return `Token ${ev.tokenId} entrou na fila do recurso para "${label}"`;
+    case "message_sent":
+      return `Mensagem enviada de "${label}" para ${ev.toId}`;
+    case "message_received":
+      return `Mensagem recebida em "${label}" (de caso ${ev.fromId})`;
     case SimulationEventType.TOKEN_ERROR:
       return `Erro de token em "${label}": elemento não encontrado no grafo`;
     default:

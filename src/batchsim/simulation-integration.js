@@ -72,8 +72,8 @@ export function bindSimulation(modeler) {
       : "▾";
   });
 
-  // Load external config
-  els.btnLoadCfg.addEventListener("click", () => els.fileCfg.click());
+  // Load external config — the <label> already triggers the hidden input natively;
+  // no extra click() call needed (would open the dialog twice).
   els.fileCfg.addEventListener("change", async (ev) => {
     const f = ev.target.files?.[0];
     if (!f) return;
@@ -89,7 +89,18 @@ export function bindSimulation(modeler) {
       }
       // Store full config for use during run
       panel._loadedCfg = cfg;
-      setStatus(els.status, `Configuração carregada: ${f.name}`);
+      const resCount = Object.keys(cfg.resources || {}).length;
+      const actCount = Object.keys(cfg.activityDurations || {}).length;
+      const flowDelays = Object.keys(cfg.messageFlowDelays || {}).length;
+      setStatus(
+        els.status,
+        `✅ Config: ${f.name}\n` +
+        `• Replicações: ${cfg.replications || '?'}\n` +
+        `• Tempo máx: ${cfg.maxSimTime || '?'}\n` +
+        `• Recursos (lanes): ${resCount}\n` +
+        `• Durações por atividade: ${actCount}\n` +
+        `• Delays em message-flows: ${flowDelays}`,
+      );
     } catch (e) {
       console.error(e);
       setStatus(els.status, "Erro ao carregar configuração.");
@@ -184,7 +195,12 @@ export function bindSimulation(modeler) {
 
       // 7) Compute metrics
       setStatus(els.status, "Calculando métricas...");
-      currentRun.metrics = computeMetrics(rawResults, graph.elementsById);
+      const metricsCfg = { ...cfg, _laneOfElement: graph.laneOfElement };
+      currentRun.metrics = computeMetrics(
+        rawResults,
+        graph.elementsById,
+        metricsCfg,
+      );
 
       currentRun.status = SimulationStatus.COMPLETED;
       currentRun.endedAt = new Date().toISOString();
@@ -217,14 +233,19 @@ export function bindSimulation(modeler) {
 
       // 9) Show results
       const m = currentRun.metrics;
+      const cte = ((m.cycleTimeEfficiency || 0) * 100).toFixed(1);
+      const overloaded = (m.resourceMetrics || []).filter((r) => r.isOverloaded).length;
       setStatus(
         els.status,
         `✅ Concluído!\n` +
           `Replicações: ${cfg.replications}\n` +
-          `Casos completos: ${m.completedCases}/${m.totalCases}\n` +
+          `Casos: ${m.completedCases}/${m.totalCases}\n` +
           `Ciclo médio: ${m.avgCycleTime.toFixed(2)}\n` +
-          `Throughput: ${m.throughput.toFixed(4)}\n` +
-          `WIP médio: ${m.avgWip.toFixed(4)}\n` +
+          `P90/P95: ${(m.p90CycleTime||0).toFixed(2)} / ${(m.p95CycleTime||0).toFixed(2)}\n` +
+          `Throughput λ: ${m.throughput.toFixed(4)}\n` +
+          `WIP médio: ${m.avgWip.toFixed(2)}\n` +
+          `CTE: ${cte}%\n` +
+          `Recursos saturados: ${overloaded}\n` +
           `Gargalos: ${m.bottlenecks.length}\n` +
           `Log: ${currentRun.log.length} entradas`,
       );
