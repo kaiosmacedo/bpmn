@@ -10,7 +10,7 @@ import BpmnModdle from "bpmn-moddle";
 import { buildGraph } from "./graph.js";
 import { runBatch } from "./engine.js";
 import { mulberry32, toCsv, downloadText } from "./utils.js";
-import { applyHeatmap, clearHeatmap } from "./heatmap.js";
+import { applyHeatmap, clearHeatmap, clearOverlays } from "./heatmap.js";
 import { computeMetrics } from "./metrics.js";
 import { buildStructuredLog } from "./logger.js";
 import { createDashboard, renderDashboard } from "./dashboard.js";
@@ -59,6 +59,7 @@ export function bindSimulation(modeler) {
     btnStop: panel.querySelector("#sim-btn-stop"),
     btnDash: panel.querySelector("#sim-btn-dashboard"),
     btnClearHeat: panel.querySelector("#sim-btn-clear-heat"),
+    btnToggleMode: panel.querySelector("#sim-btn-toggle-mode"),
     btnLoadCfg: panel.querySelector("#sim-btn-load-cfg"),
     fileCfg: panel.querySelector("#sim-file-cfg"),
     status: panel.querySelector("#sim-ctrl-status"),
@@ -132,12 +133,37 @@ export function bindSimulation(modeler) {
     dashboard.classList.remove("is-hidden");
   });
 
-  // Clear heatmap
+  // Clear heatmap + overlays
   els.btnClearHeat.addEventListener("click", () => {
     const canvas = modeler.get("canvas");
     const elementRegistry = modeler.get("elementRegistry");
+    const overlaysSvc = modeler.get("overlays");
     clearHeatmap(canvas, elementRegistry);
-    setStatus(els.status, "Heatmap limpo.");
+    clearOverlays(overlaysSvc);
+    panel._simOverlayData = null;
+    setStatus(els.status, "Visualização limpa.");
+  });
+
+  // Toggle overlay mode (KPI badges ↔ Heatmap ↔ Flow only)
+  els.btnToggleMode.addEventListener("click", () => {
+    const modes = ["kpi", "heat", "flow"];
+    const modeLabels = { kpi: "📊 KPIs", heat: "🌡️ Calor", flow: "🔀 Fluxo" };
+    const current = panel._overlayMode || "kpi";
+    const next = modes[(modes.indexOf(current) + 1) % modes.length];
+    panel._overlayMode = next;
+    els.btnToggleMode.textContent = modeLabels[next];
+
+    if (panel._simOverlayData) {
+      const canvas = modeler.get("canvas");
+      const elementRegistry = modeler.get("elementRegistry");
+      const overlaysSvc = modeler.get("overlays");
+      clearHeatmap(canvas, elementRegistry);
+      clearOverlays(overlaysSvc);
+      applyHeatmap({ ...panel._simOverlayData, mode: next });
+      setStatus(els.status, `Modo de visualização: ${modeLabels[next]}`);
+    } else {
+      setStatus(els.status, "Execute uma simulação primeiro.");
+    }
   });
 
   // ── Run simulation function ──
@@ -205,9 +231,10 @@ export function bindSimulation(modeler) {
       currentRun.status = SimulationStatus.COMPLETED;
       currentRun.endedAt = new Date().toISOString();
 
-      // 8) Apply heatmap
+      // 8) Apply heatmap + KPI overlays
       const canvas = modeler.get("canvas");
       const elementRegistry = modeler.get("elementRegistry");
+      const overlaysSvc = modeler.get("overlays");
 
       const elementCounts = new Map();
       const flowCounts = new Map();
@@ -223,13 +250,21 @@ export function bindSimulation(modeler) {
         }
       }
 
-      clearHeatmap(canvas, elementRegistry);
-      applyHeatmap({
+      // Store data for mode toggling
+      panel._simOverlayData = {
         canvas,
         elementRegistry,
+        overlays: overlaysSvc,
         elementsCounts: elementCounts,
         flowCounts,
-      });
+        elementMetrics: currentRun.metrics.elementMetrics,
+        resourceMetrics: currentRun.metrics.resourceMetrics,
+        bottlenecks: currentRun.metrics.bottlenecks,
+      };
+
+      clearHeatmap(canvas, elementRegistry);
+      clearOverlays(overlaysSvc);
+      applyHeatmap({ ...panel._simOverlayData, mode: panel._overlayMode || "kpi" });
 
       // 9) Show results
       const m = currentRun.metrics;
@@ -352,8 +387,11 @@ function createControlPanel() {
         <button id="sim-btn-dashboard" class="sim-controls__btn" title="Abrir dashboard de resultados">
           📊 Dashboard
         </button>
-        <button id="sim-btn-clear-heat" class="sim-controls__btn" title="Limpar heatmap do diagrama">
+        <button id="sim-btn-clear-heat" class="sim-controls__btn" title="Limpar visualização do diagrama">
           🧹 Limpar
+        </button>
+        <button id="sim-btn-toggle-mode" class="sim-controls__btn" title="Alternar modo de visualização (KPIs / Calor / Fluxo)">
+          📊 KPIs
         </button>
       </div>
 

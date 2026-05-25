@@ -75,11 +75,106 @@
 .sim-hot-4 .djs-visual > :nth-child(2),
 .sim-hot-4 .djs-visual > path { opacity: 1.0; }
 
-/* Stroke width heatmap for sequence flows */
-.sim-flow-1 .djs-visual > path { stroke-width: 2.5px !important; }
-.sim-flow-2 .djs-visual > path { stroke-width: 3.5px !important; }
-.sim-flow-3 .djs-visual > path { stroke-width: 4.5px !important; }
-.sim-flow-4 .djs-visual > path { stroke-width: 6px !important; }
+/* Stroke width + color for sequence flows */
+.sim-flow-1 .djs-visual > path { stroke: #4caf50 !important; stroke-width: 2.5px !important; }
+.sim-flow-2 .djs-visual > path { stroke: #8bc34a !important; stroke-width: 3.5px !important; }
+.sim-flow-3 .djs-visual > path { stroke: #ff9800 !important; stroke-width: 4.5px !important; }
+.sim-flow-4 .djs-visual > path { stroke: #e53935 !important; stroke-width: 6px !important; }
+
+/* Performance color fills on tasks */
+.sim-perf-good .djs-visual > :nth-child(1) { fill: rgba(76, 175, 80, 0.12) !important; stroke: #4caf50 !important; }
+.sim-perf-ok .djs-visual > :nth-child(1) { fill: rgba(255, 193, 7, 0.12) !important; stroke: #ffc107 !important; }
+.sim-perf-warn .djs-visual > :nth-child(1) { fill: rgba(255, 152, 0, 0.18) !important; stroke: #ff9800 !important; }
+.sim-perf-bad .djs-visual > :nth-child(1) { fill: rgba(229, 57, 53, 0.15) !important; stroke: #e53935 !important; }
+
+/* Bottleneck: red border + pulsing animation */
+.sim-bottleneck .djs-visual > :nth-child(1) {
+  fill: rgba(198, 40, 40, 0.1) !important;
+  stroke: #c62828 !important;
+  stroke-width: 2.5px !important;
+  animation: sim-pulse 1.8s ease-in-out infinite;
+}
+@keyframes sim-pulse {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.4; }
+}
+
+/* ═══════════════════════════════════════════════════
+   KPI Overlay Badges (HTML over elements)
+   ═══════════════════════════════════════════════════ */
+.sim-overlay-badge {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  line-height: 1.4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
+  cursor: default;
+  white-space: nowrap;
+  min-width: 45px;
+}
+.sim-overlay-badge--bottleneck {
+  border-color: #c62828;
+  background: rgba(255, 235, 238, 0.95);
+  box-shadow: 0 2px 8px rgba(198, 40, 40, 0.25);
+}
+.sim-overlay-badge__row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.sim-overlay-badge__row--count {
+  color: #64748b;
+  font-size: 9px;
+}
+.sim-overlay-badge__icon {
+  font-size: 10px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   Lane utilization badges
+   ═══════════════════════════════════════════════════ */
+.sim-overlay-lane {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+  cursor: default;
+}
+.sim-overlay-lane--ok {
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  color: #2e7d32;
+}
+.sim-overlay-lane--over {
+  background: rgba(229, 57, 53, 0.12);
+  border: 1px solid rgba(229, 57, 53, 0.4);
+  color: #c62828;
+}
+.sim-overlay-lane--idle {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  color: #1565c0;
+}
+.sim-overlay-lane__pct {
+  font-variant-numeric: tabular-nums;
+}
+.sim-overlay-lane__cap {
+  font-size: 10px;
+  opacity: 0.7;
+}
 
 
 
