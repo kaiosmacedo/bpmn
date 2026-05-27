@@ -1,0 +1,121 @@
+{
+  "scenarioId": "simple-deterministic",
+  "replications": 1,
+  "seed": 42,
+  "startEventId": "StartEvent_1",
+
+  "_description": [
+    "Processo linear determinístico para validação manual.",
+    "Start → Registrar(5min) → Analisar(10min) → Aprovar(5min) → End",
+    "3 recursos separados (1 por lane, cap=1 cada).",
+    "Chegadas fixas a cada 9 min. maxSimTime=50 → 6 instâncias.",
+    "",
+    "Lógica: inter-arrival(9) < duração Analisar(10), então SOMENTE",
+    "o recurso Analista gera fila. Atendente e Gerente nunca acumulam fila.",
+    "Isso cria um bottleneck claro e previsível em Analisar."
+  ],
+
+  "caseArrival": {
+    "type": "fixed",
+    "value": 9
+  },
+
+  "resources": {
+    "Lane_Registro":  { "capacity": 1, "name": "Atendente" },
+    "Lane_Analise":   { "capacity": 1, "name": "Analista" },
+    "Lane_Aprovacao": { "capacity": 1, "name": "Gerente" }
+  },
+
+  "activityDurations": {
+    "Task_Registrar": { "type": "fixed", "value": 5,  "name": "Registrar" },
+    "Task_Analisar":  { "type": "fixed", "value": 10, "name": "Analisar" },
+    "Task_Aprovar":   { "type": "fixed", "value": 5,  "name": "Aprovar" }
+  },
+
+  "maxSimTime": 50,
+  "maxEvents": 50000,
+
+  "_expectedResults": {
+    "_notes": [
+      "Com 3 recursos separados (1 por tarefa), a fila ocorre APENAS em Analisar",
+      "porque inter-arrival(9) < duração Analisar(10). Padrão perfeitamente linear:",
+      "  wait_Analisar(n) = max(0, (n-1) × 1)  [cresce 1 min por instância]",
+      "Registrar e Aprovar NUNCA têm fila (dur 5 < inter-arrival 9)."
+    ],
+    "instances": [
+      {
+        "case": 1, "arrive": 0,
+        "Registrar": {"start": 0, "end": 5, "wait": 0},
+        "Analisar":  {"start": 5, "end": 15, "wait": 0},
+        "Aprovar":   {"start": 15, "end": 20, "wait": 0},
+        "cycleTime": 20, "totalWait": 0
+      },
+      {
+        "case": 2, "arrive": 9,
+        "Registrar": {"start": 9, "end": 14, "wait": 0},
+        "Analisar":  {"start": 15, "end": 25, "wait": 1},
+        "Aprovar":   {"start": 25, "end": 30, "wait": 0},
+        "cycleTime": 21, "totalWait": 1
+      },
+      {
+        "case": 3, "arrive": 18,
+        "Registrar": {"start": 18, "end": 23, "wait": 0},
+        "Analisar":  {"start": 25, "end": 35, "wait": 2},
+        "Aprovar":   {"start": 35, "end": 40, "wait": 0},
+        "cycleTime": 22, "totalWait": 2
+      },
+      {
+        "case": 4, "arrive": 27,
+        "Registrar": {"start": 27, "end": 32, "wait": 0},
+        "Analisar":  {"start": 35, "end": 45, "wait": 3},
+        "Aprovar":   {"start": 45, "end": 50, "wait": 0},
+        "cycleTime": 23, "totalWait": 3
+      },
+      {
+        "case": 5, "arrive": 36,
+        "Registrar": {"start": 36, "end": 41, "wait": 0},
+        "Analisar":  {"start": 45, "end": 55, "wait": 4},
+        "Aprovar":   {"start": 55, "end": 60, "wait": 0},
+        "cycleTime": 24, "totalWait": 4
+      },
+      {
+        "case": 6, "arrive": 45,
+        "Registrar": {"start": 45, "end": 50, "wait": 0},
+        "Analisar":  {"start": 55, "end": 65, "wait": 5},
+        "Aprovar":   {"start": 65, "end": 70, "wait": 0},
+        "cycleTime": 25, "totalWait": 5
+      }
+    ],
+    "summary": {
+      "totalInstances": 6,
+      "avgCycleTime": "mean(20,21,22,23,24,25) = 135/6 = 22.5",
+      "avgTotalWait": "mean(0,1,2,3,4,5) = 15/6 = 2.5",
+      "avgProcessingTime": 20,
+      "lastCompletionTime": 70,
+      "throughput": "6/70 = 0.0857 instâncias/min"
+    },
+    "_resourceUtilization": {
+      "Atendente (Lane_Registro)":  "6×5 / 70 = 30/70 = 42.9%",
+      "Analista (Lane_Analise)":    "6×10 / 70 = 60/70 = 85.7%  ← BOTTLENECK",
+      "Gerente (Lane_Aprovacao)":   "6×5 / 70 = 30/70 = 42.9%"
+    },
+    "_formula": [
+      "Registrar_start(n) = arrive(n) = 9*(n-1)  [Atendente sempre livre]",
+      "Registrar_end(n) = 9*(n-1) + 5",
+      "Analisar_start(n) = max(Registrar_end(n), Analisar_end(n-1))",
+      "  = max(9n-4, Analisar_start(n-1)+10)",
+      "  Solução: Analisar_start(n) = 5 + 10*(n-1)  para n≥1",
+      "Analisar_end(n) = 5 + 10*n",
+      "Analisar_wait(n) = Analisar_start(n) - Registrar_end(n) = (n-1)",
+      "Aprovar_start(n) = Analisar_end(n) = 5 + 10*n  [Gerente sempre livre]",
+      "Aprovar_end(n) = 10 + 10*n",
+      "cycleTime(n) = Aprovar_end(n) - arrive(n) = 10+10*n - 9*(n-1) = 10+10n-9n+9 = 19+n = 20+(n-1)",
+      "avgCycle = mean(20..25) = 22.5",
+      "avgWait = mean(0..5) = 2.5"
+    ]
+  },
+
+  "export": {
+    "prefix": "simple-deterministic"
+  }
+}
